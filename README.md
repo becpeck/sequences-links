@@ -1,4 +1,4 @@
-# web-scraping
+# sequences-links
 
 To install dependencies:
 
