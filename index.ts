@@ -1,12 +1,19 @@
 import axios from "axios";
 import * as cheerio from "cheerio";
+import { processLWPost } from "./scraper/postLW";
+import { prisma } from "./db";
+import headers from "./scraper/headers";
+
+const url = new URL("https://www.lesswrong.com/posts/XqmjdBKa4ZaXJtNmf/raising-the-sanity-waterline");
+const url2 = new URL("/posts/SGR4GxFK7KmW7ckCB/something-to-protect", url.origin);
+console.log(url.href)
+console.log(url2.href)
+// console.log(url.pathname);
+// console.log(url.hostname)
 
 async function scrapeLWPost(url: `https://www.lesswrong.com/posts/${string}`) {
     const response = await axios.get(url, {
-        headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-            'Accept': 'application/json'
-        }
+        headers,
     });
     const selector = cheerio.load(response.data);
     return {
@@ -25,22 +32,14 @@ async function scrapeLWPost(url: `https://www.lesswrong.com/posts/${string}`) {
         title: selector("div.LWPostsPageHeader-title h1").text(),
         author: selector("span.PostsAuthors-authorName").text(),
         date: new Date(selector("div.LWPostsPageHeader-date time").attr("datetime")!),
-        // content: selector("div#postContent").html(),
-        links: selector("div#postContent a:not(#more)").slice(0, 10).map((i, el) => ({
-            title: el.childNodes[0],
-            url: el.attribs.href
-        })).get(),
+        links: selector("a:not(#more)", "div#postContent").slice(0, 10).map((i, el) => {{
+            return {
+                title: selector(el).text(),
+                url: selector(el).attr("href"),
+            }
+        }}).get(),
     }
 }
-
-// const data = await scrapeLWPost("https://www.lesswrong.com/posts/XqmjdBKa4ZaXJtNmf/raising-the-sanity-waterline");
-// console.log(data);
-const res = await axios.get("http://www.overcomingbias.com/2008/02/second-law.html", {
-    headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-        'Accept': 'application/json'
-    }
-});
 
 const response = await fetch("http://www.overcomingbias.com/2008/02/second-law.html", {
     headers: {
@@ -51,3 +50,35 @@ const response = await fetch("http://www.overcomingbias.com/2008/02/second-law.h
 
 console.log("Final URL:", response.url);  // This should show the final URL after redirects
 console.log("Status:", response.status);
+const selector = cheerio.load(await response.text());
+const data = processLWPost(new URL(response.url), selector);
+console.log(data);
+
+try {
+    await prisma.post.create({
+    data: {
+        id: data.id,
+        title: data.title,
+        author: data.author,
+        publishedDate: data.publishedDate,
+        sequence: {
+            connectOrCreate: {
+                where: {
+                    id: data.sequence.id,
+                },
+                create: {
+                    id: data.sequence.id,
+                    title: data.sequence.title,
+                    url: data.sequence.url,
+                }
+            }
+        }
+    },
+    include: {
+        sequence: true,
+    }
+})
+console.log("Post created successfully");
+} catch (error) {
+    console.error(error);
+}
