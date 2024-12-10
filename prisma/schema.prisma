@@ -9,3 +9,66 @@ datasource db {
   provider = "sqlite"
   url      = env("DATABASE_URL")
 }
+
+model Post {
+  id            Int       @id @default(autoincrement())
+  lesswrongId   String?   @unique
+  title         String
+  author        String?
+  publishedDate DateTime?
+  contentHash   String?
+  
+  // Relationships
+  sequence      Sequence? @relation(fields: [sequenceId], references: [id])
+  sequenceId    Int?
+  
+  // URLs associated with this post
+  urls          PostUrl[]
+  
+  // Link relationships
+  outgoingLinks PostLink[] @relation("FromPost")
+  incomingLinks PostLink[] @relation("ToPost")
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model PostUrl {
+  id          Int      @id @default(autoincrement())
+  originalUrl String
+  finalUrl    String
+  siteType    String   // 'lesswrong' | 'overcomingbias' | 'other'
+  isCanonical Boolean  @default(false)
+  
+  // Relationship to Post
+  post        Post     @relation(fields: [postId], references: [id])
+  postId      Int
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model PostLink {
+  id          Int      @id @default(autoincrement())
+  linkText    String?
+  originalUrl String
+  
+  // Relationships for directed graph
+  fromPost    Post     @relation("FromPost", fields: [fromPostId], references: [id])
+  fromPostId  Int
+  toPost      Post     @relation("ToPost", fields: [toPostId], references: [id])
+  toPostId    Int
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Sequence {
+  id        Int      @id @default(autoincrement())
+  title     String
+  url       String   @unique
+  posts     Post[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
