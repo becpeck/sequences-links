@@ -1,0 +1,72 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Post {
+  id            String    @id @unique
+  title         String
+  author        String?
+  publishedDate DateTime?
+
+  // Relationships
+  sequence   Sequence? @relation(fields: [sequenceId], references: [id])
+  sequenceId String?
+
+  // URLs associated with this post
+  urls PostUrl[]
+
+  // Link relationships
+  outgoingLinks PostLink[] @relation("FromPost")
+  incomingLinks PostLink[] @relation("ToPost")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model PostUrl {
+  id          Int     @id @default(autoincrement())
+  originalUrl String
+  finalUrl    String
+  siteType    String // 'lesswrong' | 'overcomingbias' | 'other'
+  isCanonical Boolean @default(false)
+
+  // Relationship to Post
+  post   Post   @relation(fields: [postId], references: [id])
+  postId String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model PostLink {
+  id          Int     @id @default(autoincrement())
+  linkText    String?
+  originalUrl String
+
+  // Relationships for directed graph
+  fromPost   Post   @relation("FromPost", fields: [fromPostId], references: [id])
+  fromPostId String
+  toPost     Post   @relation("ToPost", fields: [toPostId], references: [id])
+  toPostId   String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Sequence {
+  id    String @id @unique
+  title String
+  url   String @unique
+  posts Post[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
