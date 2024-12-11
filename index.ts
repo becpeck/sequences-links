@@ -55,30 +55,47 @@ const data = processLWPost(new URL(response.url), selector);
 console.log(data);
 
 try {
-    await prisma.post.create({
-    data: {
-        id: data.id,
-        title: data.title,
-        author: data.author,
-        publishedDate: data.publishedDate,
-        sequence: {
-            connectOrCreate: {
-                where: {
-                    id: data.sequence.id,
-                },
-                create: {
-                    id: data.sequence.id,
-                    title: data.sequence.title,
-                    url: data.sequence.url,
+    await prisma.post.upsert({
+        where: {
+            id: data.id,
+        },
+        update: {
+            title: data.title,
+            author: data.author,
+            publishedDate: data.publishedDate,
+            sequence: {
+                connectOrCreate: {
+                    where: {
+                        id: data.sequence.id,
+                    },
+                    create: {
+                        id: data.sequence.id,
+                        title: data.sequence.title,
+                        url: data.sequence.url,
+                    }
+                }
+            }
+        },
+        create: {
+            id: data.id,
+            title: data.title,
+            author: data.author,
+            publishedDate: data.publishedDate,
+            sequence: {
+                connectOrCreate: {
+                    where: {
+                        id: data.sequence.id,
+                    },
+                    create: {
+                        id: data.sequence.id,
+                        title: data.sequence.title,
+                        url: data.sequence.url,
+                    }
                 }
             }
         }
-    },
-    include: {
-        sequence: true,
-    }
-})
-console.log("Post created successfully");
+    })
+    console.log("Post created successfully");
 } catch (error) {
     console.error(error);
 }
